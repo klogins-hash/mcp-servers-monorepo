@@ -7,9 +7,8 @@ A centralized repository for managing multiple Model Context Protocol (MCP) serv
 ```
 mcp-servers-monorepo/
 ├── servers/
-│   ├── weaviate/          # Weaviate MCP Server
 │   ├── shared/            # Shared utilities and libraries
-│   └── [future-servers]/  # Additional MCP servers
+│   └── [your-servers]/    # Your MCP servers go here
 ├── scripts/               # Build and deployment scripts
 ├── docs/                  # Documentation
 ├── docker-compose.yml     # Multi-server orchestration
@@ -18,11 +17,7 @@ mcp-servers-monorepo/
 
 ## Available Servers
 
-### Weaviate MCP Server
-- **Location**: `servers/weaviate/`
-- **Description**: MCP server for Weaviate vector database operations
-- **Features**: Insert objects, query data, hybrid search
-- **Deployment**: Railway-ready with Docker configuration
+*No servers added yet. Add your first MCP server using the guide in `docs/adding-new-server.md`*
 
 ## Getting Started
 

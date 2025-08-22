@@ -1,32 +1,15 @@
 version: '3.8'
 
 services:
-  weaviate-mcp:
-    build:
-      context: ./servers/weaviate
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - WEAVIATE_HOST=${WEAVIATE_HOST}
-      - WEAVIATE_SCHEME=${WEAVIATE_SCHEME:-https}
-      - WEAVIATE_API_KEY=${WEAVIATE_API_KEY}
-      - DEFAULT_COLLECTION=${DEFAULT_COLLECTION:-DefaultCollection}
-      - MCP_TRANSPORT=http
-      - PORT=8080
-    restart: unless-stopped
-    networks:
-      - mcp-network
-
-  # Template for future MCP servers
+  # Template for MCP servers
   # example-mcp:
   #   build:
   #     context: ./servers/example
   #     dockerfile: Dockerfile
   #   ports:
-  #     - "8081:8081"
+  #     - "8080:8080"
   #   environment:
-  #     - PORT=8081
+  #     - PORT=8080
   #   restart: unless-stopped
   #   networks:
   #     - mcp-network
