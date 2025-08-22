@@ -17,7 +17,20 @@ mcp-servers-monorepo/
 
 ## Available Servers
 
-*No servers added yet. Add your first MCP server using the guide in `docs/adding-new-server.md`*
+*No servers added yet. Add your first MCP server by copying any existing MCP repository into the `servers/` folder.*
+
+## Quick Start - Copy & Paste Any MCP Repository
+
+```bash
+# Method 1: Copy-paste existing repo
+cp -r ~/path/to/mcp-server servers/my-server
+./scripts/copy-paste-repo.sh my-server
+./scripts/deploy-railway.sh my-server
+
+# Method 2: Clone directly
+./scripts/add-repo.sh https://github.com/user/mcp-server-example
+./scripts/deploy-railway.sh mcp-server-example
+```
 
 ## Getting Started
 
