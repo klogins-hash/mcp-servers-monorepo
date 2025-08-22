@@ -20,18 +20,23 @@ mcp-servers-monorepo/
 - **[Railway MCP Server](servers/railway-mcp-server/)** - Custom Railway MCP server for deployment management
 - **[Filesystem Test](servers/filesystem-test/)** - Example filesystem MCP server for testing
 
-## Quick Start - Copy & Paste Any MCP Repository
+## Quick Start - Add Any MCP Repository as Git Subtree
 
 ```bash
-# Method 1: Copy-paste existing repo
-cp -r ~/path/to/mcp-server servers/my-server
-./scripts/copy-paste-repo.sh my-server
+# Add MCP server as Git subtree (recommended)
+./scripts/add-subtree.sh https://github.com/user/mcp-server-example my-server
 ./scripts/deploy-railway.sh my-server
 
-# Method 2: Clone directly
-./scripts/add-repo.sh https://github.com/user/mcp-server-example
-./scripts/deploy-railway.sh mcp-server-example
+# Update server from upstream later
+./scripts/update-subtree.sh my-server
 ```
+
+### Why Git Subtrees?
+- **Maintains Git history** from original repositories
+- **Easy updates** - pull latest changes from upstream
+- **Can contribute back** to original repositories  
+- **No extra files** - works like normal Git
+- **Railway deployment** works exactly the same
 
 ## Getting Started
 
