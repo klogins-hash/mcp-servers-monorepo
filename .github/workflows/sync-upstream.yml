@@ -1,0 +1,189 @@
+name: Sync Forks with Upstream
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      server_name:
+        description: 'Server name to sync (leave empty for all)'
+        required: false
+        type: string
+      upstream_url:
+        description: 'Upstream repository URL (required if server_name specified)'
+        required: false
+        type: string
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      servers-matrix: ${{ steps.detect-servers.outputs.servers }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect servers needing updates
+        id: detect-servers
+        run: |
+          # Make scripts executable
+          chmod +x scripts/*.sh
+          
+          # Check for updates and create matrix
+          servers=()
+          
+          if [ -n "${{ github.event.inputs.server_name }}" ]; then
+            # Manual trigger for specific server
+            servers+=("${{ github.event.inputs.server_name }}")
+          else
+            # Auto-detect servers that need updates
+            for server in $(ls servers/ | grep -v shared); do
+              if [ -d "servers/$server" ] && git remote get-url "$server" >/dev/null 2>&1; then
+                servers+=("$server")
+              fi
+            done
+          fi
+          
+          # Convert to JSON array
+          printf -v servers_json '%s\n' "${servers[@]}" | jq -R . | jq -s .
+          echo "servers=$servers_json" >> $GITHUB_OUTPUT
+          
+          echo "Detected servers: ${servers[@]}"
+
+  sync-upstream:
+    needs: check-updates
+    if: needs.check-updates.outputs.servers-matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        server: ${{ fromJson(needs.check-updates.outputs.servers-matrix) }}
+      fail-fast: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh
+
+      - name: Get upstream URL for server
+        id: get-upstream
+        run: |
+          server="${{ matrix.server }}"
+          
+          # Manual input takes precedence
+          if [ -n "${{ github.event.inputs.upstream_url }}" ] && [ "$server" = "${{ github.event.inputs.server_name }}" ]; then
+            echo "upstream_url=${{ github.event.inputs.upstream_url }}" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Auto-detect upstream URL based on common patterns
+          case "$server" in
+            "railway-mcp-server")
+              echo "upstream_url=https://github.com/railwayapp/railway-mcp-server.git" >> $GITHUB_OUTPUT
+              ;;
+            "vapi-mcp-server"|"mcp-server-vapi")
+              echo "upstream_url=https://github.com/VapiAI/mcp-server.git" >> $GITHUB_OUTPUT
+              ;;
+            "weaviate-mcp-server"|"mcp-server-weaviate")
+              echo "upstream_url=https://github.com/weaviate/mcp-server-weaviate.git" >> $GITHUB_OUTPUT
+              ;;
+            "filesystem-mcp-server"|"mcp-server-filesystem")
+              echo "upstream_url=https://github.com/modelcontextprotocol/servers.git" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "⚠️ No upstream URL configured for $server"
+              echo "upstream_url=" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
+      - name: Check for updates
+        id: check-updates
+        run: |
+          server="${{ matrix.server }}"
+          
+          # Check if server has updates available
+          if ./scripts/check-upstream-updates.sh | grep -q "$server.*commits behind"; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "📊 $server has updates available"
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "✅ $server is up to date"
+          fi
+
+      - name: Sync fork with upstream
+        if: steps.check-updates.outputs.has_updates == 'true' && steps.get-upstream.outputs.upstream_url != ''
+        run: |
+          server="${{ matrix.server }}"
+          upstream_url="${{ steps.get-upstream.outputs.upstream_url }}"
+          
+          echo "🔄 Syncing $server with upstream: $upstream_url"
+          
+          # Run the sync script
+          ./scripts/sync-fork-upstream.sh "$server" "$upstream_url"
+
+      - name: Create Pull Request
+        if: steps.check-updates.outputs.has_updates == 'true' && steps.get-upstream.outputs.upstream_url != ''
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          commit-message: "chore: sync ${{ matrix.server }} with upstream"
+          title: "🔄 Sync ${{ matrix.server }} with upstream"
+          body: |
+            ## Automated Upstream Sync
+            
+            This PR automatically syncs the `${{ matrix.server }}` subtree with its upstream repository.
+            
+            **Upstream:** ${{ steps.get-upstream.outputs.upstream_url }}
+            **Server Path:** `servers/${{ matrix.server }}/`
+            
+            ### Changes
+            - Updated subtree from upstream repository
+            - Maintains Railway deployment compatibility
+            - Preserves local configuration files
+            
+            ### Testing
+            - [ ] Test locally: `cd servers/${{ matrix.server }} && [test command]`
+            - [ ] Deploy to Railway: `./scripts/deploy-railway.sh ${{ matrix.server }}`
+            
+            ---
+            *This PR was created automatically by the upstream sync workflow.*
+          branch: sync/${{ matrix.server }}-upstream
+          delete-branch: true
+
+  summary:
+    needs: [check-updates, sync-upstream]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "## Upstream Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.check-updates.outputs.servers-matrix }}" = "[]" ]; then
+            echo "🎉 No servers found or all servers are up to date!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "📊 Checked servers: ${{ needs.check-updates.outputs.servers-matrix }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the individual job results for details on each server." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Manual Sync" >> $GITHUB_STEP_SUMMARY
+          echo "To manually sync a specific server:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo './scripts/sync-fork-upstream.sh <server-name> <upstream-url>' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

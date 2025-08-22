@@ -37,6 +37,7 @@ mcp-servers-monorepo/
 - **Can contribute back** to original repositories  
 - **No extra files** - works like normal Git
 - **Railway deployment** works exactly the same
+- **Automated fork sync** - keeps your forks updated with official repos
 
 ## Getting Started
 
