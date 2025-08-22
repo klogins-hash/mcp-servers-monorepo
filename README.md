@@ -17,9 +17,7 @@ mcp-servers-monorepo/
 
 ## Available Servers
 
-- **[VAPI](servers/vapi/)** - Official VAPI MCP server for voice AI capabilities
-- **[Weaviate](servers/weaviate/)** - Official Weaviate MCP server for AI-native database operations  
-- **[Railway](servers/railway/)** - Official Railway MCP server for deployment management
+- **[Railway MCP Server](servers/railway-mcp-server/)** - Custom Railway MCP server for deployment management
 - **[Filesystem Test](servers/filesystem-test/)** - Example filesystem MCP server for testing
 
 ## Quick Start - Copy & Paste Any MCP Repository
